@@ -1,0 +1,63 @@
+name: API Tests
+
+# Wyzwalacze:
+# - workflow_dispatch: ręczne uruchomienie z zakładki Actions.
+# - push na main: uruchamia się po merge do głównego brancha ORAZ przy
+#   bezpośrednim push na main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# Minimalne uprawnienia — workflow potrzebuje jedynie odczytu zawartości repo.
+permissions:
+  contents: read
+
+# Nie przerywaj aktywnego live runu (mógłby zostawić niesprzątnięte zasoby).
+concurrency:
+  group: api-tests-live-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Testy live z bramką health — wymagają klucza API.
+  live:
+    name: Testy live z bramką health
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalacja zależności
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Sekret wstrzykiwany WYŁĄCZNIE do tego kroku, który faktycznie używa API.
+      # Brak sekretu = czytelny błąd konfiguracji (nie zielony workflow), ponieważ
+      # walidacja konfiguracji rzuca ConfigError przed żądaniami.
+      # API-only: NIE instalujemy przeglądarek ani zależności systemowych.
+      - name: Live suite (health → stations/weather)
+        env:
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        run: npm run test:live
+
+      # Ładujemy tylko zredagowany raport (reporter list → blob), krótka retencja.
+      # Trace jest wyłączony, więc artefakt nie zawiera żądań z parametrem appid.
+      - name: Upload raportu (zredagowany)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: test-results/
+          retention-days: 5
+          if-no-files-found: ignore

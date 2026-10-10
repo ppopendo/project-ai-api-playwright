@@ -1,0 +1,25 @@
+# Zależności
+node_modules/
+
+# Sekrety i lokalne pliki środowiskowe (NIGDY nie commitować)
+.env
+.env.local
+.env.*.local
+*.key
+secrets/
+
+# Artefakty Playwright (mogą zawierać dane żądań/sekrety)
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Logi
+*.log
+npm-debug.log*
+
+# System plików / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
